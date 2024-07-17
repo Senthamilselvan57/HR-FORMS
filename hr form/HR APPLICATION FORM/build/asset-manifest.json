@@ -1,0 +1,17 @@
+{
+  "files": {
+    "main.css": "/static/css/main.4329cd45.css",
+    "main.js": "/static/js/main.519bf048.js",
+    "static/js/787.62fd892c.chunk.js": "/static/js/787.62fd892c.chunk.js",
+    "static/media/PSG HOSPITALS LOGO.jpg": "/static/media/PSG HOSPITALS LOGO.1e97c62f6b5f455c5027.jpg",
+    "static/media/tick.png": "/static/media/tick.74f1da7f42fe4965f356.png",
+    "index.html": "/index.html",
+    "main.4329cd45.css.map": "/static/css/main.4329cd45.css.map",
+    "main.519bf048.js.map": "/static/js/main.519bf048.js.map",
+    "787.62fd892c.chunk.js.map": "/static/js/787.62fd892c.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.4329cd45.css",
+    "static/js/main.519bf048.js"
+  ]
+}

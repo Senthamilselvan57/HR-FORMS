@@ -1,0 +1,59 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400&display=swap");
+$primary-color: #b32e3f;
+
+* {
+  padding: 0px;
+  margin: 0px;
+  font-family: "Roboto", sans-serif;
+  font-size: 1.1rem;
+}
+.mrd_ser_loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.App {
+  .mrd_nav {
+    display: flex;
+    justify-content: center;
+    .mrd_nav_img {
+      width: 130px;
+    }
+  }
+
+  .mrd_nav_line1 {
+    background-color: $primary-color;
+    height: 60px;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.8rem;
+    position: relative;
+
+    .ser_btn {
+      background-color: transparent;
+      border: none;
+      position: absolute;
+      right: 20px;
+      top: 7px;
+    }
+  }
+//   .custom-left-shift {
+//     margin-left: 10px; /* Adjust the value as needed */
+// }
+
+  .mrd_whole {
+    width: 100%;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    .mrd_overlay {
+      position: fixed;
+      top: 0px;
+      width: 100%;
+      height: 100%;
+    }
+  }
+}
