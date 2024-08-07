@@ -76,37 +76,39 @@ const insertData = asyncHandler(async (req, res) => {
     const applNo = `${currentYear}${currentMonth}${formattedAutoIncremented}`;
 
     const insertApplicSql = `
-  INSERT INTO FMSMAC_APPLIC_DET (
-    FMSMAC_APPL_NO,
-    FMSMAC_NAME,
-    FMSMAC_DOB,
-    FMSMAC_SEX,
-    FMSMAC_REFERENCE,
-    FMSMAC_SALARY_EXPECT,
-    FMSMAC_DESG_CATG,
-    FMSMAC_RECOMMEND,
-    FMSMAC_MARITAL,
-    FMSMAC_COMMUNITY,
-    FMSMAC_PASSPORT_NO,
-    FMSMAC_TOT_YR_EXP,
-    FMSMAC_POST_APP,
-    FMSMAC_POST_APP_2
-  ) VALUES (
-    :applNo,
-    :name,
-    TO_DATE(:dob, 'YYYY-MM-DD'),
-    :sex,
-    :reference,
-    :salaryExpect,
-    :desgCatg,
-    :recommend,
-    :marital,
-    :community,
-    :passportNo,
-    :totYrExp,
-    :postApp,
-    :postApp2
-  )`;
+    INSERT INTO FMSMAC_APPLIC_DET (
+      FMSMAC_APPL_NO,
+      FMSMAC_NAME,
+      FMSMAC_DOB,
+      FMSMAC_SEX,
+      FMSMAC_REFERENCE,
+      FMSMAC_SALARY_EXPECT,
+      FMSMAC_DESG_CATG,
+      FMSMAC_RECOMMEND,
+      FMSMAC_MARITAL,
+      FMSMAC_COMMUNITY,
+      FMSMAC_PASSPORT_NO,
+      FMSMAC_TOT_YR_EXP,
+      FMSMAC_POST_APP,
+      FMSMAC_POST_APP_2,
+      FMSMAC_APPL
+    ) VALUES (
+      :applNo,
+      :name,
+      TO_DATE(:dob, 'YYYY-MM-DD'),
+      :sex,
+      :reference,
+      :salaryExpect,
+      :desgCatg,
+      :recommend,
+      :marital,
+      :community,
+      :passportNo,
+      :totYrExp,
+      :postApp,
+      :postApp2,
+      SYSDATE
+    )`;
 
     const applicBind = [
       applNo,
@@ -307,16 +309,15 @@ const generateOtp = () => {
 const sendOtp = asyncHandler(async (req, res) => {
   try {
     const { mobile } = req.body;
-
     const trimmedMobile = mobile.trim();
 
     if (!trimmedMobile) {
       return res.status(400).json({ error: "Mobile number is required" });
     }
 
-    // Check if mobile number already exists in database
+    // Check if the mobile number is already registered
     const checkMobileSql = `
-      SELECT COUNT(*) AS mobileCount 
+      SELECT COUNT(*) AS MOBILECOUNT 
       FROM FMSMAC_APPLIC_LOGIN_DET 
       WHERE mobile = :mobile`;
 
@@ -326,28 +327,33 @@ const sendOtp = asyncHandler(async (req, res) => {
       "TRS"
     );
 
-    if (mobileResult[0].mobileCount > 0) {
+    console.log("Raw mobile result:", mobileResult); // Log raw result
+
+    if (mobileResult.length > 0 && mobileResult[0].MOBILECOUNT > 0) {
       return res
         .status(400)
-        .json({ error: "Mobile number already registered" });
+        .json({ error: "Mobile number is already registered." });
     }
 
-    // Query your database to check if the mobile number is already verified
-    const isMobileVerified = await selectFunction.functionSelect(
-      `SELECT * FROM FMSMAC_MOBILE_OTP WHERE mobile = :mobile`,
-      { mobile: { val: trimmedMobile } },
+    // Check if there is an existing, non-expired OTP for this mobile number
+    const checkOtpSql = `
+      SELECT COUNT(*) AS OTPCOUNT
+      FROM FMSMAC_MOBILE_OTP
+      WHERE mobile = :mobile AND created_at >= (SYSDATE - INTERVAL '5' MINUTE)`;
+
+    const otpResult = await selectFunction.functionSelect(
+      checkOtpSql,
+      { mobile: trimmedMobile },
       "TRS"
     );
 
-    if (
-      isMobileVerified &&
-      isMobileVerified.length > 0 &&
-      isMobileVerified[0].verified
-    ) {
-      // If mobile number is already verified, return success
-      return res
-        .status(200)
-        .json({ message: "Mobile number already verified" });
+    console.log("Raw OTP result:", otpResult); // Log raw result
+
+    if (otpResult.length > 0 && otpResult[0].OTPCOUNT > 0) {
+      return res.status(400).json({
+        error:
+          "OTP already sent to this mobile number. Please try again later.",
+      });
     }
 
     // Generate OTP
@@ -375,7 +381,7 @@ const sendOtp = asyncHandler(async (req, res) => {
       console.log("SMS sent successfully:", body);
     });
 
-    return res.status(200).json({ otp });
+    return res.status(200).json({ message: "OTP sent successfully" });
   } catch (error) {
     console.error("Error during OTP send:", error);
     return res.status(500).json({ error: "Internal Server Error" });
@@ -453,11 +459,10 @@ const signUp = asyncHandler(async (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 });
-const verifyOtp = async (req, res) => {
+
+const verifyOtp = asyncHandler(async (req, res) => {
   try {
     const { mobile, otp } = req.body;
-    console.log("Received mobile:", mobile);
-    console.log("Received OTP:", otp);
 
     if (!mobile || !otp) {
       return res
@@ -465,86 +470,61 @@ const verifyOtp = async (req, res) => {
         .json({ error: "Mobile number and OTP are required" });
     }
 
-    // Check if the mobile number is already registered
-    const mobileRegisteredSql = `
-      SELECT COUNT(*) AS mobileCount 
-      FROM FMSMAC_APPLIC_LOGIN_DET 
-      WHERE mobile = :mobile`;
-
-    const mobileResult = await selectFunction.functionSelect(
-      mobileRegisteredSql,
-      { mobile },
-      "TRS"
-    );
-
-    if (mobileResult[0].mobileCount > 0) {
-      return res
-        .status(400)
-        .json({ error: "Mobile number is already registered" });
-    }
-
-    const selectOtpSql = `SELECT OTP, JWT_TOKEN FROM FMSMAC_MOBILE_OTP WHERE mobile = :mobile`;
-    console.log(
-      "Executing SQL query to fetch OTP and JWT token for mobile:",
-      mobile
-    );
+    const selectOtpSql = `
+      SELECT OTP, JWT_TOKEN, MOBILE
+      FROM FMSMAC_MOBILE_OTP
+      WHERE mobile = :mobile AND OTP = :otp AND created_at >= (SYSDATE - INTERVAL '5' MINUTE)`;
 
     const otpResult = await selectFunction.functionSelect(
       selectOtpSql,
-      { mobile },
+      { mobile, otp },
       "TRS"
     );
-    console.log("OTP result from database:", otpResult);
 
     if (otpResult.length > 0 && otpResult[0].OTP) {
-      const storedOtp = otpResult[0].OTP.toString();
-      const receivedOtp = otp.toString();
+      const tokenPayload = { mobile };
+      const accessToken = jwt.sign(tokenPayload, process.env.JWT_SECRET, {
+        expiresIn: "15m",
+      });
+      const refreshToken = jwt.sign(
+        tokenPayload,
+        process.env.JWT_REFRESH_SECRET,
+        { expiresIn: "7d" }
+      );
 
-      console.log(`Stored OTP: ${storedOtp}, Received OTP: ${receivedOtp}`);
-      if (storedOtp === receivedOtp) {
-        // Check if a JWT token already exists
-        const existingToken = otpResult[0].JWT_TOKEN;
+      // Console the tokens
+      console.log("Access Token:", accessToken);
+      console.log("Refresh Token:", refreshToken);
 
-        if (existingToken) {
-          // If a JWT token already exists, return it
-          console.log("JWT token already exists for mobile:", mobile);
-          return res.json({
-            status: "OTP verified successfully",
-            token: existingToken,
-          });
-        } else {
-          // Generate a new JWT token
-          const token = jwt.sign({ mobile }, process.env.JWT_SECRET, {
-            expiresIn: "1h",
-          });
+      // Store the refresh token in the database
+      const updateTokenSql = `
+        UPDATE FMSMAC_MOBILE_OTP
+        SET JWT_TOKEN = :token
+        WHERE MOBILE = :mobile`;
 
-          // Update OTP row with the new JWT token
-          const updateTokenSql = `
-            UPDATE FMSMAC_MOBILE_OTP
-            SET JWT_TOKEN = :token
-            WHERE MOBILE = :mobile`;
+      await selectFunction.functionInsert_Update(
+        updateTokenSql,
+        { token: refreshToken, mobile },
+        "TRS"
+      );
 
-          await selectFunction.functionInsert_Update(
-            updateTokenSql,
-            { token, mobile },
-            "TRS"
-          );
+      // Send access token via HTTP-only cookie
+      res.cookie("accessToken", accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production", // Set to true in production
+        maxAge: 15 * 60 * 1000, // 15 minutes
+      });
 
-          return res.json({ status: "OTP verified successfully", token });
-        }
-      } else {
-        console.log("Invalid OTP: OTPs do not match");
-        return res.status(400).json({ error: "Invalid OTP" });
-      }
+      return res.json({ status: "OTP verified successfully", refreshToken });
     } else {
-      console.log("Invalid OTP: No matching record found in the database");
-      return res.status(400).json({ error: "Invalid OTP" });
+      return res.status(400).json({ error: "Invalid or expired OTP" });
     }
   } catch (error) {
     console.error("Error during OTP verification:", error);
     return res.status(500).json({ error: "Internal Server Error" });
   }
-};
+});
+
 const checkMobileRegistered = asyncHandler(async (req, res) => {
   const mobile = req.query.mobile;
 
